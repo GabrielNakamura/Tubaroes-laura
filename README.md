@@ -18,6 +18,6 @@ unzip(zipfile = "Tubaroes-dimensionalidade.zip")
 
 ## Este repositório contém:
 
-1 - Pasta R com scripts para leitura e análise de dimensionalidade dos dados
-2 - Pasta data contendo arquivo .txt com os valores de métricas de diversidade para 
+1- Pasta R com scripts para leitura e análise de dimensionalidade dos dados
+2- Pasta data contendo arquivo .txt com os valores de métricas de diversidade para 
     cada célula e reino pertencente

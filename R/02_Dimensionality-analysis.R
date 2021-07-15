@@ -23,7 +23,7 @@ IVs_diversity$IV.obs_stopRule
 # by realm ----------------------------------------------------------------
 
 reino <- metric_matrix$reino
-dimensionlity_all_realms <-
+dimensionality_all_realms <-
   matrix(data = unlist(lapply(unique(reino),
                               function(x){
                                 EE_metric_realm <- Dimensionality::EvennessEigen(matrix.M = as.matrix(div_metrics[which(metric_matrix$reino == x), ]),
@@ -51,3 +51,12 @@ dimensionlity_all_realms <-
   )
   )
   )
+
+colpos <- numeric(nrow(dimensionality_all_realms))
+for(i in 1:nrow(dimensionality_all_realms)){
+  colpos[i] <- which(dimensionality_all_realms[i, ] == max(dimensionality_all_realms[i, ]))
+}
+colnames(dimensionality_all_realms)[colpos]
+rownames(dimensionality_all_realms)
+sort(dimensionality_all_realms[, 1], decreasing = TRUE)
+apply(dimensionality_all_realms, MARGIN = 1, function(x) max(x))

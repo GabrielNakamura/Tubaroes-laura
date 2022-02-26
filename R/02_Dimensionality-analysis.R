@@ -7,7 +7,6 @@ library(Dimensionality)
 
 
 # dimensionality analysis  ------------------------------------------------
-
 EE_metric <- Dimensionality::EvennessEigen(matrix.M = as.matrix(div_metrics),
                                            scale = TRUE,
                                            method = "standardize",
@@ -51,12 +50,3 @@ dimensionality_all_realms <-
   )
   )
   )
-
-colpos <- numeric(nrow(dimensionality_all_realms))
-for(i in 1:nrow(dimensionality_all_realms)){
-  colpos[i] <- which(dimensionality_all_realms[i, ] == max(dimensionality_all_realms[i, ]))
-}
-colnames(dimensionality_all_realms)[colpos]
-rownames(dimensionality_all_realms)
-sort(dimensionality_all_realms[, 1], decreasing = TRUE)
-apply(dimensionality_all_realms, MARGIN = 1, function(x) max(x))

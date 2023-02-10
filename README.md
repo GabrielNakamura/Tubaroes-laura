@@ -20,3 +20,12 @@ unzip(zipfile = "Tubaroes-dimensionalidade.zip")
 
 1. Pasta R com scripts para leitura e análise de dimensionalidade dos dados
 2. Pasta data contendo arquivo .txt com os valores de métricas de diversidade para cada célula e reino pertencente
+
+# To do list
+
+- [ ] incluir contorno dos continentes em todos os mapas
+
+- [ ] prancha dos IVs
+
+- [ ] Figura da regressao
+

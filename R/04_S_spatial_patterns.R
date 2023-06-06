@@ -12,35 +12,37 @@ library(unikn)
 
 # raster dos IV'S , EE'S,  Atributos and Spatial Data --------------------------------------
 
-metric_matrix <- read.table(file = here::here("data", "matrizclean.txt"), header = TRUE) # metricas brutas
-sf_metrics <- sf::st_as_sf(metric_matrix)
-medidas <- read.table(file = here::here("data", "dimensionality_all_realms.txt"), header = TRUE) # matriz com IV e EE
-colnames(medidas)[1] <- "Realm"
-realms_sf <- sf::st_read(here::here("data", "spatial_data", "MarineRealms.shp"))
+# metric_matrix <- read.table(file = here::here("data", "matrizclean.txt"), header = TRUE) # metricas brutas
+# sf_metrics <- sf::st_as_sf(metric_matrix)
+medidas <- readRDS(file = here::here("data", "dimensionality_06_06_23.rds")) # matriz com IV e EE
+medidas <- as.data.frame(medidas)
+medidas$Realm <- rownames(medidas)
+realms_sf <- sf::st_read(here::here("data", "spatial_data", "MarineRealms.shp")) # shapefile with Realms
 realms_sf <- realms_sf[-which(realms_sf$Realm == c(1, 2)), ]
-realms_stats <- read.table(file = here::here("data", "reinos_stat.txt"), header = TRUE) # caracteristicas dos reinos
+realms_stats <- read.table(file = here::here("data", "reinos_stat.txt"), header = TRUE) # Realms features
 realms_stats <- data.frame(Realm = realms_sf$Realm, realms_stats)
 class(realms_stats$Realm) <- "character"
 
 # editing spatial objects -------------------------------------------------
 
 realms_sf <- merge(realms_sf, medidas, by.x = 'Realm', by.y = 'Realm', all = FALSE, sort = T) %>%
-  st_transform(crs = "+proj=robin")
+  st_transform(crs = "+proj=robin") # joining realms and metrics
 class(realms_sf$Realm) <- "character"
+colnames(realms_sf)[9] <- "log.richness" # just changing the name of richness variable
 
 # IVs Eveness -------------------------------------------------------------
 IV_all <-
-data.frame(vpdmorf = realms_sf$vpdmorf,
-           mpdmorf = realms_sf$vpdmorf,
-           pd.obs.z = realms_sf$pd.obs.z,
-           FDivmorf = realms_sf$FDivmorf,
-           FEvemorf = realms_sf$FEvemorf,
-           ses_fric = realms_sf$ses_fric,
-           richness = realms_sf$ntaxa)
+data.frame(ses.pd = realms_sf$ses.pd,
+           mpdphy = realms_sf$mpdphy,
+           vpdphy = realms_sf$vpdphy,
+           ses.fd = realms_sf$ses.fd,
+           mpdfunc = realms_sf$mpdfunc,
+           vpdfunc = realms_sf$vpdfunc,
+           richness = realms_sf$log.richness)
 Eveness_IVs <- apply(IV_all,
                      MARGIN = 1,
-                     function(x) vegan::diversity(x, index = "shannon"))/(log(7))
-Eveness_IVs <- data.frame(Realm = realms_sf$Realm, Eveness_IVs)
+                     function(x) vegan::diversity(x, index = "shannon"))/(log(7)) # Equitability of IV values
+Eveness_IVs <- data.frame(Realm = realms_sf$Realm, Eveness_IVs) # joining with Realms names
 
 # assembling spatial data -------------------------------------------------
 
@@ -48,11 +50,11 @@ sf_dimensionality <-
   realms_sf %>%
   st_transform(crs = "+proj=robin") %>%
   left_join(Eveness_IVs) %>%
-  left_join(realms_stats)
+  left_join(realms_stats) # joining dimensionality metrics with Realms and reprojecting the maps to an equal are projection
 
 # plotting realms Fig 1  ----------------------------------------------------------
 
-# color palete (Laura)
+# color pallete (Laura)
 pal <- usecol(pal = pal_unikn_pair, n = 28)
 
 # plotting marine realms
@@ -93,9 +95,9 @@ map_EE <- ggplot() +
           color = "black", size = 0.5) +
   rcartocolor::scale_fill_carto_c(palette = "Teal",
                                   direction = 1,
-                                  limits = c(0, .5),  ## max percent overall
-                                  breaks = seq(0, .5, by = .1),
-                                  labels = glue::glue("{seq(0, .5, by = 0.1)}")) +
+                                  limits = c(0, .52),  ## max percent overall
+                                  breaks = seq(0, .52, by = .1),
+                                  labels = glue::glue("{seq(0, .52, by = 0.1)}")) +
   guides(fill = guide_colorbar(barheight = unit(30, units = "mm"),
                                barwidth = unit(3, units = "mm"),
                                direction = "vertical",
@@ -115,16 +117,16 @@ map_EE <- ggplot() +
                                      margin = margin(b = 6))
   )
 
-# IVs eveness
+# IVs evenness
 map_EvenessIV <- ggplot() +
   geom_sf(data = sf_dimensionality, aes(geometry = geometry,
                                         fill = Eveness_IVs),
           color = "black", size = 0.5) +
   rcartocolor::scale_fill_carto_c(palette = "Teal",
                                   direction = 1,
-                                  limits = c(0, .7),  ## max percent overall
-                                  breaks = seq(0, .7, by = .1),
-                                  labels = glue::glue("{seq(0, .7, by = 0.1)}")) +
+                                  limits = c(0, .8),  ## max percent overall
+                                  breaks = seq(0, .8, by = .1),
+                                  labels = glue::glue("{seq(0, .8, by = 0.1)}")) +
   guides(fill = guide_colorbar(barheight = unit(2.3, units = "mm"),
                                barwidth = unit(50, units = "mm"),
                                direction = "horizontal",
@@ -145,19 +147,19 @@ map_EvenessIV <- ggplot() +
                                      margin = margin(b = 6))
   )
 
-# plotting IV evenness ----------------------------------------------------
+# plotting IV for each metric ----------------------------------------------------
 
-# IV vpd
-map_vpdmorf <-
+# IV vpd func
+map_vpdfunc <-
   ggplot() +
   geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = vpdmorf),
+                                        fill = vpdfunc),
           color = "black", size = 0.5) +
   rcartocolor::scale_fill_carto_c(palette = "Teal",
                                   direction = 1,
-                                  limits = c(0, .09),  ## max percent overall
-                                  breaks = seq(0, .09, by = .03),
-                                  labels = glue::glue("{seq(0, .09, by = 0.03)}")) +
+                                  limits = c(0, .2),  ## max percent overall
+                                  breaks = seq(0, .2, by = .03),
+                                  labels = glue::glue("{seq(0, .2, by = 0.03)}")) +
   guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
                                barwidth = unit(3, units = "mm"),
                                direction = "vertical",
@@ -165,7 +167,7 @@ map_vpdmorf <-
                                title.position = "top",
                                label.position = "right",
                                title.hjust = 0.5)) +
-  labs(subtitle = "IV VPD", title = "") +
+  labs(subtitle = "IV Functional VPD", title = "") +
   theme(panel.background = element_rect(fill = "transparent"),
         plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
         legend.title = element_blank(),
@@ -178,15 +180,136 @@ map_vpdmorf <-
                                      margin = margin(b = 6))
   )
 
-# IV pd
-map_pd.obs.z <- ggplot() +
+# IV mpd func
+map_mpdfunc <- ggplot() +
   geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = pd.obs.z),
+                                        fill = mpdfunc),
           color = "black", size = 0.05) +
   rcartocolor::scale_fill_carto_c(palette = "Teal",
                                   direction = 1,
+                                  limits = c(0, .07),  ## max percent overall
+                                  breaks = seq(0, 0.07, by = 0.02),
+                                  labels = glue::glue("{seq(0, 0.07, by = 0.02)}")) +
+  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
+                               barwidth = unit(3, units = "mm"),
+                               direction = "vertical",
+                               ticks.colour = "grey20",
+                               title.position = "top",
+                               label.position = "right",
+                               title.hjust = 0.5)) +
+  labs(subtitle = "IV Functional MPD", title = "") +
+  theme(panel.background = element_rect(fill = "transparent"),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
+        legend.title = element_blank(),
+        legend.text = element_text(family = "Times", color = "black", size = 8),
+        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
+        plot.subtitle = element_text(family = "Arial",
+                                     color = "black",
+                                     size = 11,
+                                     hjust = 0.5,
+                                     margin = margin(b = 6))
+  )
+
+
+# IV vpd phylo
+map_vpdphy <- ggplot() +
+  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
+                                        fill = vpdphy),
+          color = "black", size = 0.5) +
+  rcartocolor::scale_fill_carto_c(palette = "Teal",
+                                  direction = 1,
+                                  limits = c(0, .1),  ## max percent overall
+                                  breaks = seq(0, .1, by = .02),
+                                  labels = glue::glue("{seq(0, .1, by = 0.02)}")) +
+  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
+                               barwidth = unit(3, units = "mm"),
+                               direction = "vertical",
+                               ticks.colour = "grey20",
+                               title.position = "top",
+                               label.position = "right",
+                               title.hjust = 0.5)) +
+  labs(subtitle = "IV Phylogenetic VPD", title = "") +
+  theme(panel.background = element_rect(fill = "transparent"),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
+        legend.title = element_blank(),
+        legend.text = element_text(family = "Times", color = "black", size = 8),
+        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
+        plot.subtitle = element_text(family = "Arial",
+                                     color = "black",
+                                     size = 11,
+                                     hjust = 0.5,
+                                     margin = margin(b = 6))
+  )
+
+# IV mpd phy
+map_mpdphy <- ggplot() +
+  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
+                                        fill = mpdphy),
+          color = "black", size = 0.5) +
+  rcartocolor::scale_fill_carto_c(palette = "Teal",
+                                  direction = 1,
+                                  limits = c(0, .05),  ## max percent overall
+                                  breaks = seq(0, .05, by = .01),
+                                  labels = glue::glue("{seq(0, .05, by = 0.01)}")) +
+  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
+                               barwidth = unit(3, units = "mm"),
+                               direction = "vertical",
+                               ticks.colour = "grey20",
+                               title.position = "top",
+                               label.position = "right",
+                               title.hjust = 0.5)) +
+  labs(subtitle = "IV Phylogenetic MPD", title = "") +
+  theme(panel.background = element_rect(fill = "transparent"),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
+        legend.title = element_blank(),
+        legend.text = element_text(family = "Times", color = "black", size = 8),
+        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
+        plot.subtitle = element_text(family = "Arial",
+                                     color = "black",
+                                     size = 11,
+                                     hjust = 0.5,
+                                     margin = margin(b = 6))
+  )
+
+# IV sesfd
+map_ses.fd <- ggplot() +
+  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
+                                        fill = ses.fd),
+          color = "black", size = 0.5) +
+  rcartocolor::scale_fill_carto_c(palette = "Teal",
+                                  direction = 1,
+                                  limits = c(0, .5),  ## max percent overall
+                                  breaks = seq(0, .5, by = .1),
+                                  labels = glue::glue("{seq(0, .5, by = 0.1)}")) +
+  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
+                               barwidth = unit(3, units = "mm"),
+                               direction = "vertical",
+                               ticks.colour = "grey20",
+                               title.position = "top",
+                               label.position = "right",
+                               title.hjust = 0.5)) +
+  labs(subtitle = "IV Functional Richness", title = "") +
+  theme(panel.background = element_rect(fill = "transparent"),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
+        legend.title = element_blank(),
+        legend.text = element_text(family = "Times", color = "black", size = 8),
+        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
+        plot.subtitle = element_text(family = "Arial",
+                                     color = "black",
+                                     size = 11,
+                                     hjust = 0.5,
+                                     margin = margin(b = 6))
+  )
+
+# IV sespd
+map_ses.pd <- ggplot() +
+  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
+                                        fill = ses.pd),
+          color = "black", size = 0.5) +
+  rcartocolor::scale_fill_carto_c(palette = "Teal",
+                                  direction = 1,
                                   limits = c(0, 1),  ## max percent overall
-                                  breaks = seq(0, 1, by = 0.2),
+                                  breaks = seq(0, 1, by = .2),
                                   labels = glue::glue("{seq(0, 1, by = 0.2)}")) +
   guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
                                barwidth = unit(3, units = "mm"),
@@ -195,98 +318,7 @@ map_pd.obs.z <- ggplot() +
                                title.position = "top",
                                label.position = "right",
                                title.hjust = 0.5)) +
-  labs(subtitle = "IV ses.PD", title = "") +
-  theme(panel.background = element_rect(fill = "transparent"),
-        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
-        legend.title = element_blank(),
-        legend.text = element_text(family = "Times", color = "black", size = 8),
-        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
-        plot.subtitle = element_text(family = "Arial",
-                                     color = "black",
-                                     size = 11,
-                                     hjust = 0.5,
-                                     margin = margin(b = 6))
-  )
-
-
-# IV FDivmorf
-map_FDivmorf <- ggplot() +
-  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = FDivmorf),
-          color = "black", size = 0.5) +
-  rcartocolor::scale_fill_carto_c(palette = "Teal",
-                                  direction = 1,
-                                  limits = c(0, .01),  ## max percent overall
-                                  breaks = seq(0, .01, by = .002),
-                                  labels = glue::glue("{seq(0, .01, by = 0.002)}")) +
-  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
-                               barwidth = unit(3, units = "mm"),
-                               direction = "vertical",
-                               ticks.colour = "grey20",
-                               title.position = "top",
-                               label.position = "right",
-                               title.hjust = 0.5)) +
-  labs(subtitle = "IV FDiv", title = "") +
-  theme(panel.background = element_rect(fill = "transparent"),
-        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
-        legend.title = element_blank(),
-        legend.text = element_text(family = "Times", color = "black", size = 8),
-        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
-        plot.subtitle = element_text(family = "Arial",
-                                     color = "black",
-                                     size = 11,
-                                     hjust = 0.5,
-                                     margin = margin(b = 6))
-  )
-
-# IV FEvemorf
-map_ses.FEvemorf <- ggplot() +
-  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = FEvemorf),
-          color = "black", size = 0.5) +
-  rcartocolor::scale_fill_carto_c(palette = "Teal",
-                                  direction = 1,
-                                  limits = c(0, .04),  ## max percent overall
-                                  breaks = seq(0, .04, by = .01),
-                                  labels = glue::glue("{seq(0, .04, by = 0.01)}")) +
-  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
-                               barwidth = unit(3, units = "mm"),
-                               direction = "vertical",
-                               ticks.colour = "grey20",
-                               title.position = "top",
-                               label.position = "right",
-                               title.hjust = 0.5)) +
-  labs(subtitle = "IV FEve", title = "") +
-  theme(panel.background = element_rect(fill = "transparent"),
-        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
-        legend.title = element_blank(),
-        legend.text = element_text(family = "Times", color = "black", size = 8),
-        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
-        plot.subtitle = element_text(family = "Arial",
-                                     color = "black",
-                                     size = 11,
-                                     hjust = 0.5,
-                                     margin = margin(b = 6))
-  )
-
-# IV fric
-map_ses.ses_fric <- ggplot() +
-  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = ses_fric),
-          color = "black", size = 0.5) +
-  rcartocolor::scale_fill_carto_c(palette = "Teal",
-                                  direction = 1,
-                                  limits = c(0, .9),  ## max percent overall
-                                  breaks = seq(0, .9, by = .1),
-                                  labels = glue::glue("{seq(0, .9, by = 0.1)}")) +
-  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
-                               barwidth = unit(3, units = "mm"),
-                               direction = "vertical",
-                               ticks.colour = "grey20",
-                               title.position = "top",
-                               label.position = "right",
-                               title.hjust = 0.5)) +
-  labs(subtitle = "IV ses.FD", title = "") +
+  labs(subtitle = "IV Phylogenetic Richness", title = "") +
   theme(panel.background = element_rect(fill = "transparent"),
         plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
         legend.title = element_blank(),
@@ -300,15 +332,15 @@ map_ses.ses_fric <- ggplot() +
   )
 
 # IV richness
-map_ses.ntaxa <- ggplot() +
+map_richness <- ggplot() +
   geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = ntaxa),
+                                        fill = log.richness),
           color = "black", size = 0.5) +
   rcartocolor::scale_fill_carto_c(palette = "Teal",
                                   direction = 1,
-                                  limits = c(0, .2),  ## max percent overall
-                                  breaks = seq(0, .2, by = .05),
-                                  labels = glue::glue("{seq(0, .2, by = 0.05)}")) +
+                                  limits = c(0, .05),  ## max percent overall
+                                  breaks = seq(0, .05, by = .01),
+                                  labels = glue::glue("{seq(0, .05, by = 0.01)}")) +
   guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
                                barwidth = unit(3, units = "mm"),
                                direction = "vertical",
@@ -316,7 +348,7 @@ map_ses.ntaxa <- ggplot() +
                                title.position = "top",
                                label.position = "right",
                                title.hjust = 0.5)) +
-  labs(subtitle = "IV Richness", title = "") +
+  labs(subtitle = "IV Richness (log)", title = "") +
   theme(panel.background = element_rect(fill = "transparent"),
         plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
         legend.title = element_blank(),
@@ -329,59 +361,27 @@ map_ses.ntaxa <- ggplot() +
                                      margin = margin(b = 6))
   )
 
-# IV MPD
-map_mpdmorf <- ggplot() +
-  geom_sf(data = sf_dimensionality, aes(geometry = geometry,
-                                        fill = mpdmorf),
-          color = "black", size = 0.5) +
-  rcartocolor::scale_fill_carto_c(palette = "Teal",
-                                  direction = 1,
-                                  limits = c(0, .09),  ## max percent overall
-                                  breaks = seq(0, .09, by = .03),
-                                  labels = glue::glue("{seq(0, .09, by = 0.03)}")) +
-  guides(fill = guide_colorbar(barheight = unit(20, units = "mm"),
-                               barwidth = unit(3, units = "mm"),
-                               direction = "vertical",
-                               ticks.colour = "grey20",
-                               title.position = "top",
-                               label.position = "right",
-                               title.hjust = 0.5)) +
-  labs(subtitle = "IV MPD", title = "") +
-  theme(panel.background = element_rect(fill = "transparent"),
-        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "mm"),
-        legend.title = element_blank(),
-        legend.text = element_text(family = "Times", color = "black", size = 8),
-        axis.text = element_blank(), panel.border = element_blank(), axis.ticks = element_blank(),
-        plot.subtitle = element_text(family = "Arial",
-                                     color = "black",
-                                     size = 11,
-                                     hjust = 0.5,
-                                     margin = margin(b = 6))
-  )
 
-list_map_IVs <- list(map_FDivmorf, map_mpdmorf, map_pd.obs.z, map_ses.FEvemorf, map_ses.ntaxa, map_ses.ses_fric, map_vpdmorf)
+list_map_IVs <- list(map_ses.pd, map_mpdphy, map_vpdphy, map_ses.fd, map_mpdfunc, map_vpdfunc, map_richness)
 
-# joining maps
-map_IVs <-
-patchwork::wrap_plots(list_map_IVs) +
-  patchwork::plot_annotation(tag_levels = "A")
+# joining maps with all IVs
 
 map_IVs <-
-cowplot::plot_grid(plotlist = list_map_IVs, ncol = 4)
-
-all_IV_maps <-
-(map_FDivmorf + map_mpdmorf + map_pd.obs.z + map_ses.FEvemorf)|(map_ses.ntaxa + map_ses.ses_fric + map_vpdmorf)
+cowplot::plot_grid(plotlist = list_map_IVs, ncol = 3)
 
 
 # bivariate spatial plot --------------------------------------------------
+
+# bivariate plots with EE and Evenness of IVs
 
 sf_bivar_dimensionality <- bi_class(sf_dimensionality,
                                     x = EE,
                                     y = Eveness_IVs,
                                     style = "jenks",
-                                    dim = 3)
+                                    dim = 3) # creating data combining the two variables
 
-bivar_map_dimensionality <- ggplot() +
+bivar_map_dimensionality <-
+  ggplot() +
   geom_sf(data = sf_bivar_dimensionality,
           mapping = aes(fill = bi_class),
           color = "black",
@@ -410,6 +410,7 @@ legend <- bi_legend(pal = "DkCyan",
                     ylab = "Evennes IVs",
                     size = 8)
 
+# joining map and legend in a single Figure
 bivar_map_dimensionality_single <-
   ggdraw() +
   draw_plot(bivar_map_dimensionality, 0, 0, 1, 1) +
@@ -418,22 +419,20 @@ bivar_map_dimensionality_single <-
 # patchworking and saving maps -------------------------------------------------------
 
 
-
-ggsave(filename = here::here("output", "bivar_map.png"), plot = bivar_map_dimensionality_single, device = "png",
+ggsave(filename = here::here("output", "Fig1_Realms_map.png"), plot = map_reinos, device = "png",
        width = 10, height = 5,
        dpi = 300)
 
-ggsave(filename = here::here("output", "EE_map.png"), plot = map_EE, device = "png",
+ggsave(filename = here::here("output", "Fig2_EE_map.png"), plot = map_EE, device = "png",
        width = 10, height = 5,
        dpi = 300)
 
-ggsave(filename = here::here("output", "Reinos_map.png"), plot = map_reinos, device = "png",
+
+ggsave(filename = here::here("output", "Fig3_IVs_map.png"), plot = map_IVs, device = "png",
        width = 10, height = 5,
        dpi = 300)
 
-ggsave(filename = here::here("output", "IVs_map.png"), plot = map_IVs, device = "png",
+ggsave(filename = here::here("output", "Fig4_bivar_map.png"), plot = bivar_map_dimensionality_single, device = "png",
        width = 10, height = 5,
        dpi = 300)
 
-save_plot(filename = here::here("output", "IVs_map.png"), plot = map_IVs,
-          base_height = 4, base_width = 12)
